@@ -1,0 +1,413 @@
+{% extends "master.html" %}
+
+{% block init %}{{ aek.set_aek_version(1.4) }}
+{% endblock %}
+
+{% block title %}Personal Reminders{% endblock %}
+
+{% block main_content %}
+  {% set addons = aek.extension("AddonsWebServices") %}
+  <link rel="stylesheet" href="https://portal.ombiel.co.uk/assets/BradfordMDC/BradfordCouncil/css/bradford_mdc_aek.css" />
+  <div>
+    <article>
+      <header class="theme1 schools">
+        <h1>Reminders</h1>
+      </header>
+      {{ aek.add_lib("aek-subpages") }}
+      {{ aek.add_lib("aek-icons") }}
+	  
+      {% set action = aek.request("_action") %}
+        {{ aek.remove_from_cache }}
+		
+		{# Actions ... #}
+        {% if action == "delete" %}
+          {% set response = addons.call("deleteReminders", {"personId":aek.person_id,"password":"[[password]]","reminderIds":aek.request("reminderId") }) %}
+          {% set action = "" %}
+          <div class="buttonmdc deletedbtn">Deleted reminder "{{aek.request("message") }}"</div>
+        {% endif %}
+
+        {% if action == "createcouncil2" %}
+          {% if aek.request("month") == "10" %}
+            {% set monthcron = "1,4,5,6,7,8,9,10,11,12 ?" %}
+          {% else %}
+            {% set monthcron = "* ?" %}
+          {% endif %}
+          {% set daytoremindon = aek.request("whichday") + aek.request("when") %}
+          {% if daytoremindon <= 0 %}
+            {% set daytoremindon = daytoremindon + 28 %}
+          {% endif %}
+          {% if aek.request("when") == "-7" %}
+            {% set todaystring = "{#TODAY+7#}" %}
+          {% elseif aek.request("when") == "-3" %}
+            {% set todaystring = "{#TODAY+3#}" %}
+          {% else %}
+            {% set todaystring = "{#TODAY#}" %}
+          {% endif %}
+          {% set cronstring = "0 0 12 " ~ daytoremindon ~ " " ~ monthcron %}
+          {% set createResponse = addons.call("createReminder", {"personId":aek.person_id,"password":"[[password]]","crontab_pattern":cronstring,"message":"Council Tax reminder for " ~ todaystring,"body":"Your council tax is due on " ~ todaystring}) %}
+          {% set action = "" %}
+          {% if createResponse.desc != "Successful" %}
+            <div class="errbtn">Failed to create alert "Council Tax reminder" -- {{ createResponse.detail.returnStatus.desc }}</div>
+          {% else %}
+            <div class="createdbtn">Created alert "Council Tax reminder"</div>
+          {% endif %}
+        {% endif %}
+        {% if action == "createbusrates2" %}
+          {% if aek.request("month") == "10" %}
+            {% set monthcron = "1,4,5,6,7,8,9,10,11,12 ?" %}
+          {% else %}
+            {% set monthcron = "* ?" %}
+          {% endif %}
+          {% set daytoremindon = aek.request("whichday") %}
+          {% if daytoremindon <= 0 %}
+            {% set daytoremindon = daytoremindon + 28 %}
+          {% endif %}
+          {% set todaystring = "{#TODAY#}" %}
+          {% set cronstring = "0 0 12 " ~ daytoremindon ~ " " ~ monthcron %}
+          {% set createResponse = addons.call("createReminder", {"personId":aek.person_id,"password":"[[password]]","crontab_pattern":cronstring,"message":"Business rates reminder -- " ~ aek.request("note"),"body":"You asked us to remind you about your business rates " ~ aek.request("note")}) %}
+          {% set action = "" %}
+          {% if createResponse.desc != "Successful" %}
+            <div class="errbtn">Failed to create alert "Business rates reminder" -- {{ createResponse.detail.returnStatus.desc }}</div>
+          {% else %}
+            <div class="createdbtn">Created alert "Business rates reminder"</div>
+          {% endif %}
+        {% endif %}
+
+        {% if action == "createmonthly2" %}
+          {% set monthcron = "* ?" %}
+          {% set daytoremindon = aek.request("whichday") %}
+          {% set todaystring = "{#TODAY#}" %}
+          {% set cronstring = "0 0 12 " ~ daytoremindon ~ " " ~ monthcron %}
+          {% set createResponse = addons.call("createReminder", {"personId":aek.person_id,"password":"[[password]]","crontab_pattern":cronstring,"message":"Reminder -- " ~ aek.request("note"),"body":aek.request("body")}) %}
+          {% set action = "" %}
+          {% if createResponse.desc != "Successful" %}
+            <div class="errbtn">Failed to create alert {{ aek.request("note") }} -- {{ createResponse.detail.returnStatus.desc }}</div>
+          {% else %}
+            <div class="createdbtn">Created alert {{ aek.request("note") }}</div>
+          {% endif %}
+        {% endif %}
+
+        {% if action == "createannual2" %}
+          {% set monthcron = aek.request("whichmonth") ~ " ?" %}
+          {% set daytoremindon = aek.request("whichday") %}
+          {% set cronstring = "0 0 12 " ~ daytoremindon ~ " " ~ monthcron %}
+          {% set createResponse = addons.call("createReminder", {"personId":aek.person_id,"password":"[[password]]","crontab_pattern":cronstring,"message":"Reminder -- " ~ aek.request("note"),"body":aek.request("body")}) %}
+          {% set action = "" %}
+          {% if createResponse.desc != "Successful" %}
+            <div class="errbtn">Failed to create alert {{ aek.request("note") }} -- {{ createResponse.detail.returnStatus.desc }}</div>
+          {% else %}
+            <div class="createdbtn">Created alert {{ aek.request("note") }}</div>
+          {% endif %}
+        {% endif %}
+
+        {% if action == "createonetime2" %}
+          {% set once_only = aek.request("when") ~ "T" ~ aek.request("time") ~ ":00.000" %}
+          {% set createResponse = addons.call("createReminder", {"personId":aek.person_id,"password":"[[password]]","once_only":once_only,"message":aek.request("note"),"body":aek.request("body")}) %}
+          {% set action = "" %}
+          {% if createResponse.desc != "Successful" %}
+            <div class="errbtn">Failed to create alert {{ aek.request("note") }} -- {{ createResponse.detail.returnStatus.desc }}</div>
+          {% else %}
+            <div class="createdbtn">Created alert {{ aek.request("note") }} -- {{ createResponse.desc }}</div>
+          {% endif %}
+        {% endif %}
+
+
+		{# Show reminders list ... #}
+        {% if not action or action == "" %}
+          <section class="theme1">
+            <p class="introtext">This page allows you to set up reminders for various things - you'll receive a push notification via the app</p>
+            <form name="createme" action="{{aek.current_url}}">
+              <input type="hidden" name="_action" value="create"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create new reminder"/>
+            </form>          
+          </section>
+          {% set response = addons.call("viewReminders", {"personId":aek.person_id,"password":"[[password]]" }) %}
+          
+          {% if response.reminders.reminder %}
+            <section class="theme1 currentreminders">
+            <h2 class="theme1">Your current reminders</h2>
+            <ul class="listview">
+          {% endif %}
+          {% for reminder in response.reminders.reminder %}
+            <li>
+            {% if reminder.once_only %}
+              <span class="reminderTitle"><b>Once only - on {{ reminder.once_only|format_date("d/m/y H:i") }}</b></span>
+            {% else %}
+              <span class="reminderTitle"><b>Repeating - {{ reminder.crontab_description }}</b></span>
+            {% endif %}
+            <i>{{reminder.message}}</i>
+            <div data-role="subpage" id="stuff">
+              <section class="theme1">
+                <p>This is a reminder that's due to be sent to you via the app:</p>
+                {% if reminder.once_only %}
+                  <b>Once only - On {{ reminder.once_only|format_date("d/m/y H:i") }} (Once only)</b>
+                {% else %}
+                  <b>Repeating - {{ reminder.crontab_description }}</b>
+                {% endif %}
+                <p><i>{{reminder.message}}</i></p>
+                <p>{{ reminder.body }}</p>
+                <form name="deleteme" action="{{aek.current_url}}">
+                  <input type="hidden" name="_action" value="delete"/>
+                  <input type="hidden" name="message" value="{{reminder.message}}"/>
+                  <input type="hidden" name="reminderId" value="{{reminder.reminderId}}"/>
+                  <input type="submit" class="buttonbmdc" name="submit" value="Delete Reminder"/>
+                </form>
+               </section>
+              </div>
+            </li>
+          {% endfor %}
+          {% if response.reminders.reminder %}
+            </ul>
+            </section>
+          {% endif %}
+		{# Creation forms... #}
+        {% elseif action == "create" %}
+          <section class="theme1">
+            <h2 class="sectiontext">What do you want to be reminded of?</h2>
+            <form name="createcouncil" action="{{aek.current_url}}" class="formpadding">
+              <input type="hidden" name="_action" value="createcouncil"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="Council Tax"/>
+            </form>          
+            <form name="createbusrates" action="{{aek.current_url}}" class="formpadding">
+              <input type="hidden" name="_action" value="createbusrates"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="Business Rates"/>
+            </form>          
+            <form name="createmonthly" action="{{aek.current_url}}" class="formpadding">
+              <input type="hidden" name="_action" value="createmonthly"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="Monthly reminder"/>
+            </form>          
+            <form name="createannual" action="{{aek.current_url}}" class="formpadding">
+              <input type="hidden" name="_action" value="createannual"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="Annual reminder"/>
+            </form>          
+            <form name="createonceonly" action="{{aek.current_url}}" class="formpadding">
+              <input type="hidden" name="_action" value="onceonly"/>
+              <input type="submit" class="buttonbmdc" name="submit" value="One-time message"/>
+            </form>          
+          </section>
+        {% elseif action == "createcouncil" %}    
+          <section class="theme1">
+           <h2 class="sectiontext">Create a council tax reminder</h2>
+            <form name="createcouncil2" action="{{aek.current_url}}">
+              <div class="formpadding2">
+                <input type="hidden" name="_action" value="createcouncil2"/>
+                <label for="month">Do you pay your council tax 10 months or 12 months a year?</label>
+                <select name="month">
+                  <option value="10">10 months</option>
+                <option value="12">12 months</option>
+              </select>
+              </div>
+              <div class="formpadding2">
+                <label for="whichday">Which day is your council tax due on?</label>
+                <select name="whichday">
+                  <option value="5">5th</option>
+                  <option value="10">10th</option>
+                  <option value="15">15th</option>
+                <option value="25">25th</option>
+              </select>
+              </div>
+              <div class="formpadding2">
+                <label for="when">When do you want to be reminded?</label>
+                <select name="when">
+                  <option value="-7">7 days before</option>
+                  <option value="-3">3 days before</option>                
+                  <option value="0">On the day</option>
+                </select>
+              </div>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create Council Tax Reminder"/>
+            </form>
+          </section>
+        {% elseif action == "createbusrates" %}          
+          <section class="theme1">
+           <h2 class="sectiontext">Create a business rates reminder</h2>
+            <form name="createbusrates2" action="{{aek.current_url}}">
+              <div class="formpadding2">
+                <input type="hidden" name="_action" value="createbusrates2"/>
+                <label for="month">Do you pay your business rates 10 months or 12 months a year?</label>
+                <select name="month">
+                  <option value="10">10 months</option>
+                  <option value="12">12 months</option>
+                </select>
+              </div>
+              <div class="formpadding2">
+                <label for="whichday">Which day of the month do you want to be reminded?</label>
+                <select name="whichday">
+                  <option value="1">1st</option>
+                  <option value="2">2nd</option>
+                  <option value="3">3rd</option>
+                  <option value="4">4th</option>
+                  <option value="5">5th</option>
+                  <option value="6">6th</option>
+                  <option value="7">7th</option>
+                  <option value="8">8th</option>
+                  <option value="9">9th</option>
+                  <option value="10">10th</option>
+                  <option value="11">11th</option>
+                  <option value="12">12th</option>
+                  <option value="13">13th</option>
+                  <option value="14">14th</option>
+                  <option value="15">15th</option>
+                  <option value="16">16th</option>
+                  <option value="17">17th</option>
+                  <option value="18">18th</option>
+                  <option value="19">19th</option>
+                  <option value="20">20th</option>
+                  <option value="21">21st</option>
+                  <option value="22">22nd</option>
+                  <option value="23">23rd</option>
+                  <option value="24">24th</option>
+                  <option value="25">25th</option>
+                  <option value="26">26th</option>
+                  <option value="27">27th</option>
+                  <option value="28">28th</option>
+                </select>
+              </div>
+              <div class="formpadding2">
+                <label for="note">Any other details (will be included in the reminder)</label>
+                <input type="text" name="note"/>
+              </div>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create Business Rates Reminder"/>
+            </form>
+          </section>
+        {% elseif action == "createmonthly" %}          
+          <section class="theme1">
+           <h2 class="sectiontext">Create a monthly reminder</h2>
+            <form name="createmonthly2" action="{{aek.current_url}}">
+              <div class="formpadding2">
+                <input type="hidden" name="_action" value="createmonthly2"/>
+                <label for="whichday">Which day of the month do you want to be reminded?</label>
+                <select name="whichday">
+                  <option value="1">1st</option>
+                  <option value="2">2nd</option>
+                  <option value="3">3rd</option>
+                  <option value="4">4th</option>
+                  <option value="5">5th</option>
+                  <option value="6">6th</option>
+                  <option value="7">7th</option>
+                  <option value="8">8th</option>
+                  <option value="9">9th</option>
+                  <option value="10">10th</option>
+                  <option value="11">11th</option>
+                  <option value="12">12th</option>
+                  <option value="13">13th</option>
+                  <option value="14">14th</option>
+                  <option value="15">15th</option>
+                  <option value="16">16th</option>
+                  <option value="17">17th</option>
+                  <option value="18">18th</option>
+                  <option value="19">19th</option>
+                  <option value="20">20th</option>
+                  <option value="21">21st</option>
+                  <option value="22">22nd</option>
+                  <option value="23">23rd</option>
+                  <option value="24">24th</option>
+                  <option value="25">25th</option>
+                  <option value="26">26th</option>
+                  <option value="27">27th</option>
+                  <option value="28">28th</option>
+                </select>
+              </div>
+              <div class="formpadding2">
+                <label for="note">Message - is sent as the reminder</label>
+                <input type="text" name="note"/>
+              </div>
+              <div class="formpadding2">
+                <label for="body">Details - is sent as the reminder</label>
+                <textarea name="body"/>
+              </div>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create Monthly Reminder"/>
+            </form>
+           </section>
+        {% elseif action == "createannual" %}          
+          <section class="theme1">
+           <h2 class="sectiontext">Create an annual reminder</h2>
+            <form name="createannual2" action="{{aek.current_url}}">
+              <div class="formpadding2">
+                <input type="hidden" name="_action" value="createannual2"/>
+                <label for="whichmonth">Which month do you want to be reminded?</label>
+                <select name="whichmonth">
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
+              <div class="formpadding2">
+                <label for="whichday">Which day of the month do you want to be reminded?</label>
+                <select name="whichday">
+                  <option value="1">1st</option>
+                  <option value="2">2nd</option>
+                  <option value="3">3rd</option>
+                  <option value="4">4th</option>
+                  <option value="5">5th</option>
+                  <option value="6">6th</option>
+                  <option value="7">7th</option>
+                  <option value="8">8th</option>
+                  <option value="9">9th</option>
+                  <option value="10">10th</option>
+                  <option value="11">11th</option>
+                  <option value="12">12th</option>
+                  <option value="13">13th</option>
+                  <option value="14">14th</option>
+                  <option value="15">15th</option>
+                  <option value="16">16th</option>
+                  <option value="17">17th</option>
+                  <option value="18">18th</option>
+                  <option value="19">19th</option>
+                  <option value="20">20th</option>
+                  <option value="21">21st</option>
+                  <option value="22">22nd</option>
+                  <option value="23">23rd</option>
+                  <option value="24">24th</option>
+                  <option value="25">25th</option>
+                  <option value="26">26th</option>
+                  <option value="27">27th</option>
+                  <option value="28">28th</option>
+                </select>
+              </div>
+              <div class="formpadding2">
+                <label for="note">Message - is sent as the reminder</label>
+                <input type="text" name="note"/>
+              </div>
+              <div class="formpadding2">
+                <label for="body">Details - is sent as the reminder</label>
+                <textarea name="body"/>
+              </div>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create Annual Reminder"/>
+            </form>
+           </section>
+        {% elseif action == "onceonly" %}          
+          <section class="theme1">
+           <h2 class="sectiontext">Create a one-time reminder</h2>
+            <form name="createonceonly2" action="{{aek.current_url}}">
+              <div class="formpadding2">
+              <input type="hidden" name="_action" value="createonetime2"/>
+              <label for="whichday">When do you want to reminded</label>
+              <input type="date" name="when"/>
+              </div>
+              <div class="formpadding2">
+              <input type="time" name="time" value="09:00">
+              </div>
+              <div class="formpadding2">
+              <label for="note">Message - is sent as the reminder</label>
+              <input type="text" name="note"/>
+              </div>
+              <div class="formpadding2">
+              <label for="body">Details - is sent as the reminder</label>
+              <textarea name="body"/>
+              </div>
+              <input type="submit" class="buttonbmdc" name="submit" value="Create one-time reminder"/>
+            </form>
+           </section>
+       {% endif %}
+  </article>
+</div>
+{% endblock %}
